@@ -43,6 +43,7 @@ import static org.springframework.cloud.sample.bookstore.web.security.SecurityAu
 
 @Service
 public class BookStoreServiceInstanceBindingService implements ServiceInstanceBindingService {
+	private static final String THROW_ERROR_KEY = "throwError";
 	private static final String URI_KEY = "uri";
 	private static final String USERNAME_KEY = "username";
 	private static final String PASSWORD_KEY = "password";
@@ -104,12 +105,16 @@ public class BookStoreServiceInstanceBindingService implements ServiceInstanceBi
 	public void deleteServiceInstanceBinding(DeleteServiceInstanceBindingRequest request) {
 		String bindingId = request.getBindingId();
 
-		if (bindingRepository.existsById(bindingId)) {
-			bindingRepository.deleteById(bindingId);
-			userService.deleteUser(bindingId);
-		} else {
-			throw new ServiceInstanceBindingDoesNotExistException(bindingId);
-		}
+		ServiceBinding serviceBinding = Optional.ofNullable(bindingRepository.getOne(bindingId))
+				.orElseThrow(() -> new ServiceInstanceBindingDoesNotExistException(bindingId));
+
+		Optional.ofNullable(serviceBinding.getParameters().get(THROW_ERROR_KEY)).map(value -> "true".equals(value))
+				.ifPresent(value -> {
+					throw new RuntimeException("Throw error parameter was present for this binding.");
+				});
+
+		bindingRepository.deleteById(bindingId);
+		userService.deleteUser(bindingId);
 	}
 
 	private User createUser(CreateServiceInstanceBindingRequest request) {

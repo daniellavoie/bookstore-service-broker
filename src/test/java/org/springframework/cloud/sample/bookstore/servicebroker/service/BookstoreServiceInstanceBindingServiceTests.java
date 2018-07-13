@@ -34,6 +34,7 @@ import org.springframework.cloud.servicebroker.model.binding.GetServiceInstanceA
 import org.springframework.cloud.servicebroker.model.binding.GetServiceInstanceBindingRequest;
 import org.springframework.cloud.servicebroker.model.binding.GetServiceInstanceBindingResponse;
 
+import java.util.Collections;
 import java.util.HashMap;
 import java.util.Map;
 import java.util.Optional;
@@ -59,6 +60,7 @@ public class BookstoreServiceInstanceBindingServiceTests {
 
 	private BookStoreServiceInstanceBindingService service;
 
+	@SuppressWarnings("serial")
 	private final Map<String, Object> credentials = new HashMap<String, Object>() {{
 		put("uri", "http://example.com");
 		put("username", "testuser");
@@ -178,8 +180,8 @@ public class BookstoreServiceInstanceBindingServiceTests {
 
 	@Test
 	public void deleteBindingWhenBindingExists() {
-		when(repository.existsById(SERVICE_BINDING_ID))
-				.thenReturn(true);
+		when(repository.getOne(SERVICE_BINDING_ID))
+				.thenReturn(new ServiceBinding(SERVICE_BINDING_ID, Collections.emptyMap(), credentials));
 
 		DeleteServiceInstanceBindingRequest request = DeleteServiceInstanceBindingRequest.builder()
 				.serviceInstanceId(SERVICE_INSTANCE_ID)
@@ -188,12 +190,27 @@ public class BookstoreServiceInstanceBindingServiceTests {
 
 		service.deleteServiceInstanceBinding(request);
 
-		verify(repository).existsById(SERVICE_BINDING_ID);
+		verify(repository).getOne(SERVICE_BINDING_ID);
 		verify(repository).deleteById(SERVICE_BINDING_ID);
 		verifyNoMoreInteractions(repository);
 
 		verify(userService).deleteUser(SERVICE_BINDING_ID);
 		verifyNoMoreInteractions(userService);
+	}
+	
+	@Test(expected = RuntimeException.class)
+	public void deleteBindingWhenBindingExistsWithThrowError() {
+		Map<String, Object> parameters = new HashMap<>();
+		parameters.put("throwError", "true");
+		when(repository.getOne(SERVICE_BINDING_ID))
+				.thenReturn(new ServiceBinding(SERVICE_BINDING_ID, parameters, credentials));
+
+		DeleteServiceInstanceBindingRequest request = DeleteServiceInstanceBindingRequest.builder()
+				.serviceInstanceId(SERVICE_INSTANCE_ID)
+				.bindingId(SERVICE_BINDING_ID)
+				.build();
+
+		service.deleteServiceInstanceBinding(request);
 	}
 
 	@Test(expected = ServiceInstanceBindingDoesNotExistException.class)
